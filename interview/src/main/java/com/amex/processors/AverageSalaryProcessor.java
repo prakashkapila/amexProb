@@ -1,8 +1,15 @@
 package com.amex.processors;
 
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.Calendar;
+
+import org.apache.spark.api.java.function.MapFunction;
 import org.apache.spark.sql.AnalysisException;
 import org.apache.spark.sql.Column;
 import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Encoders;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.functions;
@@ -13,6 +20,9 @@ import com.amex.db.SalaryRowConvertor;
 import com.amex.vo.AverageSalaries;
 import com.amex.vo.input.Appearances;
 import com.amex.vo.input.Salaries;
+import com.mongodb.spark.sql.fieldTypes.api.java.Timestamp;
+
+import scala.tools.nsc.interpreter.Results;
 
 public class AverageSalaryProcessor {
 
@@ -47,7 +57,7 @@ public class AverageSalaryProcessor {
 				;
 	}
 
-	public Dataset<AverageSalaries> getAvgSalaries()  {
+	private Dataset<AverageSalaries> getAvgSalaries()  {
 		Dataset<Row> salaries = null;
 		DbReader reader = new DbReader();
 		Dataset<Row> ret1 = reader.read("appearances");
@@ -77,16 +87,51 @@ public class AverageSalaryProcessor {
 		rows2 =rows2.groupBy("yearID").avg("salary");
 		rows2=rows2.withColumnRenamed("avg(salary)", "Pitcher");
 		rows2.show(); 
- 		Dataset result = rows.join(rows2, "yearID");
+ 		Dataset<Row> result = rows.join(rows2, "yearID");
  		result.show();
 		System.out.println("Showing salaries both pitchers exclusive  & fielders");
-	//	salaries.show();
-		return null; 
+		Dataset<AverageSalaries> aveSals = 
+				result.map(new MapFunction<Row, AverageSalaries>() {
+			private static final long serialVersionUID = 8909200548043475227L;
+			@Override
+			public AverageSalaries call(Row value) throws Exception {
+				AverageSalaries sal = new AverageSalaries();
+				sal.apply(value);
+				return sal;
+			}
+			
+		}, Encoders.bean(AverageSalaries.class));
+		return aveSals; 
 	}
 
+	private void saveFile(Dataset<AverageSalaries> avgSals,final FileWriter writer) throws IOException
+	{
+ 		writer.write(AverageSalaries.COLUMNS());
+		writer.flush();
+		avgSals.foreach(x->writer.write(x.toString()));
+	}
+	
+	private void saveFile(Dataset<AverageSalaries> avgSals) throws IOException
+	{
+		File file = new File("/AvgSalaries"+System.currentTimeMillis()+".csv");
+		file.mkdirs();
+		file.createNewFile();
+		System.out.println("saving to file"+file);
+		FileWriter writer = new FileWriter(file);
+		saveFile(avgSals,writer); 
+				
+	}
+	
+	public void startProcess() {
+		try {
+			saveFile(getAvgSalaries());
+		} catch (IOException e) {
+			 e.printStackTrace();
+		}
+	}
 	public static void main(String arg[]) {
 		AverageSalaryProcessor processor = new AverageSalaryProcessor();
-		 	processor.getAvgSalaries();
+		 	processor.startProcess();
 		
 	}
 }

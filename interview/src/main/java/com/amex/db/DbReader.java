@@ -2,6 +2,7 @@ package com.amex.db;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SQLContext;
+import org.apache.spark.sql.SparkSession;
 
 import static com.amex.db.SparkSessionManager.INSTANCE;
 
@@ -24,6 +25,9 @@ public class DbReader {
 		return dataframe_mysql;
 	}
 	
+ 	public static SparkSession getSession() {
+ 		return sqlcontext.sparkSession();
+ 	}
  	
 	public static void main(String arf[])
 	{

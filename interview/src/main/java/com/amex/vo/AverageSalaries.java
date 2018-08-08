@@ -6,8 +6,17 @@ import java.text.NumberFormat;
 import org.apache.spark.sql.Row;
 
 public class AverageSalaries implements Serializable {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -4347263813346835411L;
 	String year, fielding, pitching;
 	static final NumberFormat FORMAT = NumberFormat.getInstance();
+	
+	public static String COLUMNS() {
+		return "Year,Fielders,Pitchers";
+	}
+	
 	public String getYear() {
 		return year;
 	}
@@ -55,9 +64,7 @@ public class AverageSalaries implements Serializable {
 	 	setFielding(getString(row.get(1)));
 	 	setPitching (getString(row.get(2)));
 	}
-	public String columns() {
-		return "Year"+"Fielders"+"Pitchers";
-	}
+	
 	
 	@Override
 	public String toString() {

@@ -1,13 +1,29 @@
 package com.amex.vo;
 import java.io.Serializable;
+import java.text.NumberFormat;
 
 public class Pitching implements Serializable{
 	 
 	private static final long serialVersionUID = 3615110930547267695L;
-	
+	private static final NumberFormat FORMAT = NumberFormat.getInstance();
 	Integer year,regularSeasonWinLoss,postSeasonWinLoss;
 	String player; 
 	Double regularSeasonERA,postseasonERA;
+	
+	public static String getCols() {
+		return "Year, Player, Regular Season ERA, Regular Season Win/Loss, Post-season ERA, Post-season Win/Loss";
+	}
+	
+	public String toString() {
+		StringBuilder sb= new StringBuilder();
+		sb.append(FORMAT.format(year)).append(",")
+		.append(player).append(",")
+		.append(FORMAT.format(regularSeasonERA)).append(",")
+		.append(FORMAT.format(regularSeasonWinLoss)).append(",")
+		.append(FORMAT.format(postseasonERA)).append(",")
+		.append(FORMAT.format(postSeasonWinLoss));
+		return sb.toString();
+	}
 	
 	//Mutator & Accessor methods
 	public Integer getYear() {
