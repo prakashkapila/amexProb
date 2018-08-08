@@ -55,4 +55,12 @@ public class AverageSalaries implements Serializable {
 	 	setFielding(getString(row.get(1)));
 	 	setPitching (getString(row.get(2)));
 	}
+	public String columns() {
+		return "Year"+"Fielders"+"Pitchers";
+	}
+	
+	@Override
+	public String toString() {
+		return this.year+","+this.fielding+","+this.pitching;
+	}
 }
