@@ -129,9 +129,12 @@ public class AverageSalaryProcessor {
 			 e.printStackTrace();
 		}
 	}
-	public static void main(String arg[]) {
+	public static void startProcessor() {
 		AverageSalaryProcessor processor = new AverageSalaryProcessor();
-		 	processor.startProcess();
-		
+	 	processor.startProcess();
+
+	}
+	public static void main(String arg[]) {
+		startProcessor();
 	}
 }
