@@ -51,9 +51,9 @@ public class PitchingProcessor {
 		 		return regular;
 	}
 
-	private Dataset<Row> getRegularSeasonPitching(DbReader reader,int num) {
-		
-		Dataset<Row> regular = reader.read("pitching");
+	private Dataset<Row> getData(DbReader reader,int num,String table)
+	{
+		Dataset<Row> regular = reader.read(table);
 		Dataset<Row> eraGroup = regular.filter(functions.expr("ERA > 0"))
 	 			.groupBy("ERA","playerID")
 	 			.avg("ERA")
@@ -71,6 +71,10 @@ public class PitchingProcessor {
 		System.out.println("The total count is"+regular.count());
 		regular.show();
  		return regular;
+	}
+	private Dataset<Row> getRegularSeasonPitching(DbReader reader,int num) {
+		
+		return 	getData(reader, num, "pitching");
  	}
 	
 	public static void main(String arg[])
