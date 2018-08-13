@@ -116,8 +116,7 @@ public class PitchingProcessor implements Serializable {
 		try {
 			proce.startProcess(new DbReader());
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+		 	e.printStackTrace();
 		}
 	}
 

@@ -14,9 +14,7 @@ public class HallOfFame implements Serializable {
 
 	private StringBuilder sb = new StringBuilder(); 
 	
-	public static String columns() {
-		return "Player, ERA, # All Star Appearances, Hall of Fame Induction Year";
-	}
+	 
 	public void apply(Row row)
 	{
 		setPlayer(row.getString(0));
@@ -65,5 +63,8 @@ public class HallOfFame implements Serializable {
 
 	public void setInductionYear(int inductionYear) {
 		this.inductionYear = inductionYear;
+	}
+	public static String COLUMNS() {
+		return "Player, ERA, # All Star Appearances, Hall of Fame Induction Year";
 	}
 }
