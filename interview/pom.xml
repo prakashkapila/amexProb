@@ -63,7 +63,7 @@
 				<configuration>
 					<archive>
 						<manifest>
-							<mainClass>com.amex.db.DbReader</mainClass>
+							<mainClass>com.amex.processors.ProcessorBuilder</mainClass>
 						</manifest>
 					</archive>
 					<descriptorRefs>

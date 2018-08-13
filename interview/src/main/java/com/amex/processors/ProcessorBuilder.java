@@ -2,11 +2,16 @@ package com.amex.processors;
 
 import com.amex.db.DbReader;
 
-public class ProcessorBuilder {
+public class ProcessorBuilder implements java.io.Serializable{
+
+	
+	private static final long serialVersionUID = -5484232270304772650L;
 
 	public void startProcessors() {
-		AverageSalaryProcessor.startProcessor();
+		
+		AverageSalaryProcessor.startProcessor(new DbReader());
 		ERAProcessor.startProcessor(new DbReader());
 		PitchingProcessor.startProcessor(new DbReader());
+		RankingsProcessor.startProcessor(new DbReader());
 	}
 }

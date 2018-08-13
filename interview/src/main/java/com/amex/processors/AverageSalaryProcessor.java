@@ -5,6 +5,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Calendar;
 
+import org.apache.spark.api.java.function.ForeachFunction;
 import org.apache.spark.api.java.function.MapFunction;
 import org.apache.spark.sql.AnalysisException;
 import org.apache.spark.sql.Column;
@@ -18,6 +19,7 @@ import com.amex.db.AppearancesRowConvertor;
 import com.amex.db.DbReader;
 import com.amex.db.SalaryRowConvertor;
 import com.amex.vo.AverageSalaries;
+import com.amex.vo.Pitching;
 import com.amex.vo.input.Appearances;
 import com.amex.vo.input.Salaries;
 import com.mongodb.spark.sql.fieldTypes.api.java.Timestamp;
@@ -57,9 +59,8 @@ public class AverageSalaryProcessor {
 				;
 	}
 
-	private Dataset<AverageSalaries> getAvgSalaries()  {
+	private Dataset<AverageSalaries> getAvgSalaries(DbReader reader)  {
 		Dataset<Row> salaries = null;
-		DbReader reader = new DbReader();
 		Dataset<Row> ret1 = reader.read("appearances");
 	 	Dataset<Row> pitchersOnly = getPitchersOnly(ret1);
 		pitchersOnly.createOrReplaceTempView("pitchers");
@@ -108,13 +109,13 @@ public class AverageSalaryProcessor {
 	{
  		writer.write(AverageSalaries.COLUMNS());
 		writer.flush();
-		avgSals.foreach(x->writer.write(x.toString()));
+		SalCSVWriter.writer = writer;
+		avgSals.foreach(new SalCSVWriter());
 	}
 	
 	private void saveFile(Dataset<AverageSalaries> avgSals) throws IOException
 	{
-		File file = new File("/AvgSalaries"+System.currentTimeMillis()+".csv");
-		file.mkdirs();
+		File file = new File("AvgSalaries"+System.currentTimeMillis()+".csv");
 		file.createNewFile();
 		System.out.println("saving to file"+file);
 		FileWriter writer = new FileWriter(file);
@@ -122,19 +123,31 @@ public class AverageSalaryProcessor {
 				
 	}
 	
-	public void startProcess() {
+	public void startProcess(DbReader reader) {
 		try {
-			saveFile(getAvgSalaries());
+			saveFile(getAvgSalaries(reader));
 		} catch (IOException e) {
 			 e.printStackTrace();
 		}
 	}
-	public static void startProcessor() {
+	public static void startProcessor(DbReader reader) {
 		AverageSalaryProcessor processor = new AverageSalaryProcessor();
-	 	processor.startProcess();
+	 	processor.startProcess(reader);
 
 	}
 	public static void main(String arg[]) {
-		startProcessor();
+		startProcessor(new DbReader());
 	}
 }
+
+class SalCSVWriter implements ForeachFunction<AverageSalaries>
+{
+	
+	private static final long serialVersionUID = 6319324370196471901L;
+	static  FileWriter writer = null;
+	@Override
+	public void call(AverageSalaries t) throws Exception {
+		 writer.write(t != null ? t.toString():"null");
+		 writer.flush();
+	}
+	}
