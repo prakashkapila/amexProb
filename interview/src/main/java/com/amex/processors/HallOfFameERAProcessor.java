@@ -15,48 +15,16 @@ import org.apache.spark.sql.Row;
 import org.apache.spark.sql.functions;
 
 import com.amex.db.DbReader;
-import com.amex.vo.AverageSalaries;
 import com.amex.vo.HallOfFame;
-import com.amex.vo.Pitching;
+import java.io.Serializable;
 
-import scala.Function0;
-import scala.Function1;
-import scala.Function2;
-import scala.Option;
-import scala.PartialFunction;
-import scala.Predef.$less$colon$less;
-import scala.Tuple2;
-import scala.Tuple3;
-import scala.collection.GenIterable;
-import scala.collection.GenSeq;
-import scala.collection.GenTraversable;
-import scala.collection.GenTraversableOnce;
-import scala.collection.Iterable;
-import scala.collection.Iterator;
-import scala.collection.Seq;
-import scala.collection.SeqView;
-import scala.collection.Traversable;
-import scala.collection.TraversableOnce;
-import scala.collection.generic.CanBuildFrom;
-import scala.collection.generic.FilterMonadic;
-import scala.collection.generic.GenericCompanion;
-import scala.collection.immutable.IndexedSeq;
-import scala.collection.immutable.List;
-import scala.collection.immutable.Map;
-import scala.collection.immutable.Range;
-import scala.collection.immutable.Set;
-import scala.collection.immutable.Stream;
-import scala.collection.immutable.Vector;
-import scala.collection.mutable.Buffer;
-import scala.collection.mutable.Builder;
-import scala.collection.parallel.Combiner;
-import scala.collection.parallel.ParIterable;
-import scala.math.Numeric;
-import scala.math.Ordering;
-import scala.reflect.ClassTag;
-import scala.runtime.Nothing$;
-
-public class ERAProcessor {
+public class HallOfFameERAProcessor implements Serializable {
+	/*
+Calculate the number of all star appearances for each Hall of Fame pitcher 
+and their average ERA their all-star years and list the year they were 
+inducted into the Hall of Fame
+*/
+	private static final long serialVersionUID = -270031695649461322L;
 	
 	private Dataset<Row> getHallOfFameSet(DbReader reader){
 		return reader.read("halloffame");
@@ -81,19 +49,11 @@ public class ERAProcessor {
 		
 		Dataset<Row> halloffame = getHallOfFameSet(reader)
 				.filter(new Column("inducted").equalTo("Y"))
-				//.withColumnRenamed("YearID", "InductedYear")
+				.withColumnRenamed("YearID", "InductedYear")
 				;
 		
  		
 		Dataset<Row> allStarAppearances = getAllStarAppearances(reader);
-		allStarAppearances = allStarAppearances.join(
-				halloffame,
-				(allStarAppearances.col("playerID").equalTo(halloffame.col("playerID")))
-				.and(allStarAppearances.col("YearID").equalTo(halloffame.col("YearID")))
-				)
-				;
-		System.out.println("Count is "+allStarAppearances.count());
-		allStarAppearances.show();
 		Dataset<Row> pitching = getPitching(reader);
 		
 		pitching.createOrReplaceTempView("pitching");
@@ -101,15 +61,31 @@ public class ERAProcessor {
 		halloffame.createOrReplaceTempView("halloffame");
 		
 		
-		Dataset<Row> countFameAppearances = halloffame.join(allStarAppearances,"playerID")
-											.groupBy("playerID","YearID","ERA").count();
+		Dataset<Row> countFameAppearances = halloffame.join(allStarAppearances,"playerID");
+
+		countFameAppearances=countFameAppearances.groupBy("playerID").count();
+		countFameAppearances=countFameAppearances.withColumnRenamed("count", "appearances");
+		
+		countFameAppearances = countFameAppearances.join(halloffame,"playerID");
+		
+ 		countFameAppearances = countFameAppearances.join(allStarAppearances,"playerID")
+		.groupBy("playerID","YearID","InductedYear","appearances").count();
+
 		countFameAppearances.show();
 		
-		Dataset<Row> result1=  countFameAppearances.join(pitching,"playerID");
+		countFameAppearances = countFameAppearances.withColumnRenamed("playerID", "FameplayerID")
+				.withColumnRenamed("YearID", "appearYearID");
+		Dataset<Row> result1=  countFameAppearances
+				.join(
+						pitching,pitching.col("playerID").equalTo(countFameAppearances.col("FameplayerID"))
+						.and (pitching.col("YearID").equalTo(countFameAppearances.col("appearYearID")))
+						)
+				.groupBy("playerID","YearID","InductedYear","appearances")
+				.avg("ERA");
 		result1.show();
-		
-//		Dataset<Row> result = DbReader.getSession().sql(sqlbuilder.toString());
-//		result.show();
+//		
+////		Dataset<Row> result = DbReader.getSession().sql(sqlbuilder.toString());
+////		result.show();
 		saveFile(result1.map(new MapFunction<Row,HallOfFame>(){
   			private static final long serialVersionUID = 1L;
  			@Override
@@ -131,7 +107,7 @@ public class ERAProcessor {
 	private void saveFile(Dataset<HallOfFame> avgSals) throws IOException
 	{
 		File file = new File("HallOfFame"+System.currentTimeMillis()+".csv");
-		file.mkdirs();
+		//file.mkdirs();
 		file.createNewFile();
 		System.out.println("saving to file"+file);
 		FileWriter writer = new FileWriter(file);
@@ -139,7 +115,7 @@ public class ERAProcessor {
 				
 	}
 	public static void startProcessor(DbReader reader) {
-	 	ERAProcessor proce = new ERAProcessor();
+	 	HallOfFameERAProcessor proce = new HallOfFameERAProcessor();
 		try {
 			proce.startProcess(reader);
 		} catch (IOException e) {
@@ -155,7 +131,7 @@ public class ERAProcessor {
 }
 class HallOfFameWriter implements ForeachFunction<HallOfFame> {
 
-	private static final long serialVersionUID = 6319324370196471909L;
+	private static final long serialVersionUID = 6319324370196471908L;
 	static FileWriter writer = null;
  	@Override
 	public void call(HallOfFame t) throws Exception {

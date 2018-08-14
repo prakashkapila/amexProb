@@ -10,7 +10,7 @@ public class ProcessorBuilder implements java.io.Serializable{
 	public void startProcessors() {
 		
 		AverageSalaryProcessor.startProcessor(new DbReader());
-		ERAProcessor.startProcessor(new DbReader());
+		HallOfFameERAProcessor.startProcessor(new DbReader());
 		PitchingProcessor.startProcessor(new DbReader());
 		RankingsProcessor.startProcessor(new DbReader());
 	}

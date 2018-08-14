@@ -12,20 +12,19 @@ public class HallOfFame implements Serializable {
 	private Integer appearnaces;
 	private Integer inductionYear;
 
-	private StringBuilder sb = new StringBuilder(); 
 	
 	 
 	public void apply(Row row)
 	{
 		setPlayer(row.getString(0));
-	 	setInductionYear(row.getInt(1));
-	 	setAppearnaces(row.getInt(2));
-	 	setEra(row.getDouble(3));
+	 	setInductionYear(row.getInt(2));
+	 	setAppearnaces(Long.valueOf(row.get(3).toString()).intValue());
+	 	setEra(row.getDouble(4));
 	}
 	
 	@Override
 	public String toString() {
-		sb.delete(0,sb.length()-1);
+		StringBuilder sb = new StringBuilder(); 
 		return sb.append(this.player).append(",")
 				.append(String.valueOf(this.era)).append(",")
 				.append(this.appearnaces).append(",")
