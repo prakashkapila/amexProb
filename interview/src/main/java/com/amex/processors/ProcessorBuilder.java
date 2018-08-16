@@ -14,4 +14,10 @@ public class ProcessorBuilder implements java.io.Serializable{
 		PitchingProcessor.startProcessor(new DbReader());
 		RankingsProcessor.startProcessor(new DbReader());
 	}
+	
+	public static void main(String arg[])
+	{
+		ProcessorBuilder builder = new ProcessorBuilder();
+		builder.startProcessors();
+	}
 }
