@@ -9,42 +9,83 @@ public class Rankings implements Serializable {
 	private static final NumberFormat FORMAT = NumberFormat.getInstance();
 	
 	private static final long serialVersionUID = 8518560273626772214L;
-	private String teamID;
-	private Integer  year, rank, atBats;
+	private String minTeamID;
+	private Integer  year, minRank, minAtBats;
 	
 	public static String COLUMNS() {
 		return "Team ID, Year, Rank, At Bats";
 	}
 	
+	public String getMinTeamID() {
+		return minTeamID;
+	}
+
+	public void setMinTeamID(String minTeamID) {
+		this.minTeamID = minTeamID;
+	}
+
+ 
+
+	public Integer getMinRank() {
+		return minRank;
+	}
+
+	public void setMinRank(Integer minRank) {
+		this.minRank = minRank;
+	}
+
+	
+
+	public Integer getMinAtBats() {
+		return minAtBats;
+	}
+
+	public void setMinAtBats(Integer minAtBats) {
+		this.minAtBats = minAtBats;
+	}
+
+	 
+
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
 		sb
-		.append(teamID).append(",")
+		.append(minTeamID).append(",")
 		.append(FORMAT.format(year)).append(",")
-		.append(FORMAT.format(rank)).append(",")
-		.append(FORMAT.format(atBats));
+		.append(FORMAT.format(minRank)).append(",")
+		.append(FORMAT.format(minAtBats));
 		return sb.toString();
 	}
-	public void apply(String... row) {
-		teamID=row[0];
-		year = Integer.valueOf(row[1]);
-		rank=Integer.valueOf(row[2]);
-		atBats=Integer.valueOf(row[3]);
-	}
+	public void apply(Object... row) {
+		minTeamID=(String)row[0];
+		year = (Integer)row[1];
+		minAtBats=(Integer)row[2];
+		minRank=(Integer)row[3];
+ 	}
 	
+	public boolean equals(Object other)
+	{
+		boolean ret = false;
+		if(other == null || (!(other instanceof Rankings)))
+			return false;
+		Rankings oth =(Rankings)other; 
+		ret = oth.getAtBats().equals(getMinAtBats())
+				&& oth.getTeamID().equalsIgnoreCase(getTeamID())
+				&& oth.getYear().equals(getYear());
+		return ret;
+	}
 	public void apply(Row row)
 	{
-		teamID=row.getString(0);
-		year = row.getInt(1);
-		rank=row.getInt(2);
-		atBats=row.getInt(3);
+		minTeamID=row.getString(1);
+		year = row.getInt(0);
+		minRank=row.getInt(3);
+		minAtBats=row.getInt(2);
 	}
 	public String getTeamID() {
-		return teamID;
+		return minTeamID;
 	}
 
 	public void setTeamID(String teamID) {
-		this.teamID = teamID;
+		this.minTeamID = teamID;
 	}
 
 	public Integer getYear() {
@@ -56,18 +97,18 @@ public class Rankings implements Serializable {
 	}
 
 	public Integer getRank() {
-		return rank;
+		return minRank;
 	}
 
 	public void setRank(Integer rank) {
-		this.rank = rank;
+		this.minRank = rank;
 	}
 
 	public Integer getAtBats() {
-		return atBats;
+		return minAtBats;
 	}
 
 	public void setAtBats(Integer atBats) {
-		this.atBats = atBats;
+		this.minAtBats = atBats;
 	}
 }

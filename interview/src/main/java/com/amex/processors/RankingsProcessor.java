@@ -10,18 +10,28 @@ import java.util.List;
 
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
+import org.apache.spark.api.java.JavaPairRDD;
+import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.ForeachFunction;
+import org.apache.spark.api.java.function.Function;
+import org.apache.spark.api.java.function.Function2;
 import org.apache.spark.api.java.function.MapFunction;
+import org.apache.spark.api.java.function.PairFlatMapFunction;
+import org.apache.spark.api.java.function.PairFunction;
 import org.apache.spark.sql.Column;
+import org.apache.spark.sql.DataFrameReader;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Encoders;
 import org.apache.spark.sql.Row;
+import org.apache.spark.sql.SQLContext;
 import org.apache.spark.sql.functions;
 
 import com.amex.db.DbReader;
 import com.amex.vo.Pitching;
 import com.amex.vo.Rankings;
+
+import scala.Tuple2;
 
 public class RankingsProcessor implements Serializable {
 
@@ -32,52 +42,115 @@ public class RankingsProcessor implements Serializable {
 				.select("teamID", "yearID", "Rank", "AB")
 				;
 		
-		Dataset<Row> yearTop = bats.groupBy("yearID","teamID")
+		Dataset<Row> yearTop = bats.groupBy("yearID","teamID","AB")
 				.agg(functions.min("Rank"));
-		yearTop = yearTop
+ 		yearTop = yearTop
 				.withColumnRenamed("yearID", "minYearID")
 				.withColumnRenamed("teamID", "minTeamID")
-					.withColumnRenamed("min(Rank)", "RankMin")
-					.groupBy("minYearID","minTeamID","RankMin")
-					.count();
-	 	
+				.withColumnRenamed("AB", "minAtBats")
+					.withColumnRenamed("min(Rank)", "RankMin");
+		 
 		Dataset<Row> yearBot = bats.select("teamID","yearID","Rank","AB")
-				.groupBy("teamID","yearID","Rank","AB").max("Rank");
+				.groupBy("teamID","yearID","AB").max("Rank");
 		
-		yearBot = yearBot.withColumnRenamed("max(Rank)", "RankMax").sort(new Column("RankMax").desc());
-		yearBot.show();
-		Dataset<Row> result = yearTop.join(yearBot,new Column("minYearID")
+		Dataset<Row> yearBotSorted = yearBot.withColumnRenamed("max(Rank)", "RankMax")
+									.sort(new Column("RankMax").desc());
+		yearTop.show();
+	 
+		Dataset<Row> result = yearTop
+				.join(yearBotSorted,new Column("minYearID")
 				.equalTo(new Column("yearID")));
-		result.show();
 		
-//		Dataset<Rankings> rankings = bats.map(new MapFunction<Row, Rankings>() {
-//			private static final long serialVersionUID = 595291736651302679L;
-// 			@Override
-//			public Rankings call(Row value) throws Exception {
-//				Rankings rank = new Rankings();
-//				rank.apply(value);
-//				return rank;
-//			}
-//		}, Encoders.bean(Rankings.class));
-		Dataset<Rankings> rankings = result.flatMap(new FlatMapFunction<Row,Rankings>(){
- 	@Override
-			public Iterator<Rankings> call(Row t) throws Exception {
- 				List<Rankings> rankings = new ArrayList<Rankings>();
+  		Dataset<Rankings> ranks = result.flatMap(new FlatMapFunction<Row, Rankings>(){
+  			private static final long serialVersionUID = 595291736651302679L;
+ 			@Override
+			public Iterator<Rankings> call(Row value) throws Exception {
+ 				List<Rankings> iter = new ArrayList<Rankings>();
  				Rankings rank = new Rankings();
- 				Rankings rank2 = new Rankings();
- 				rank.apply(t);
- 				rank2.apply(t.getString(4),t.getString(5),t.getString(6),t.getString(7));
- 				rankings.add(rank);
- 				rankings.add(rank2);
-				 return rankings.iterator();
-			}}, Encoders.bean(Rankings.class));
-		
-//		bats.takeAsList(2).forEach(x -> {
-//			Rankings ranks = new Rankings();
-//			ranks.apply(x);
-//			System.out.println(ranks.toString());
-//		});
+ 				rank.apply(value);
+ 				Rankings rank1 = new Rankings();
+ 				rank1.apply(value.get(4),value.get(5),value.get(6),value.get(7));
+ 				iter.add(rank);
+ 				iter.add(rank1);
+ 				return iter.iterator();
+			}},Encoders.bean(Rankings.class));		
+  		ranks.show();
+  		System.out.println("ranks count is "+ranks.count());
+  		
+  		JavaPairRDD<Integer,Rankings> rankInts = ranks.javaRDD().
+  				mapToPair(new PairFunction<Rankings,Integer,Rankings>(){
+  					private static final long serialVersionUID = 23448160171039937L;
+ 					@Override
+					public Tuple2<Integer, Rankings> call(Rankings t) throws Exception {
+ 						return new Tuple2<Integer,Rankings>(t.getYear(),t);
+					}});
+  		
+  	 	JavaPairRDD<Integer,List<Rankings>> minMaxRanks = 
+  				rankInts.groupByKey().mapValues(new Function<Iterable<Rankings>,List<Rankings>>(){
+ 					private static final long serialVersionUID = -8906497887177445436L;
+ 			@Override
+			public List<Rankings> call(Iterable<Rankings> v1) throws Exception {
+ 				List<Rankings> rakes = new ArrayList<Rankings>();
+				int min=100,max=0;
+				List<Rankings> lowest = new ArrayList<Rankings>();
+				List<Rankings> highest = new ArrayList<Rankings>();
+		 		for(Rankings x:v1)
+				{
+					if(min > x.getMinRank()) {
+						min =x.getMinRank();
+						lowest.clear();
+						lowest.add(x);
+					 }
+					else {
+						if(min ==x.getMinRank() &&  (!lowest.contains(x)))
+						{
+							lowest.add(x);
+						}
+					}
+					if(max < x.getMinRank()) {
+						max =x.getMinRank();
+						max = x.getMinRank();
+						highest.clear();
+							highest.add(x);
+					 }else
+						 if(max == x.getMinRank() && (!highest.contains(x)))
+						 {
+							 highest.add(x);
+						 }
+					
+				}
+				rakes.addAll(highest);
+				rakes.addAll(lowest);
+ 				return rakes;
+			}
+  		}
+  		); 		
+  		System.out.println("minMaxRanks count is "+minMaxRanks.count());
+  		minMaxRanks.take(20).forEach(x->{
+  			x._2.forEach(y->System.out.println(y.toString()));
+  		});
+  		JavaRDD<Rankings> resultRankings = 
+  				minMaxRanks.flatMap(new FlatMapFunction<Tuple2<Integer,List<Rankings>>,Rankings>(){
 
+			/**
+					 * 
+					 */
+					private static final long serialVersionUID = 2734868681816226078L;
+
+			@Override
+			public Iterator<Rankings> call(Tuple2<Integer, List<Rankings>> t) throws Exception {
+	 			return t._2.iterator();
+			}});
+  		SQLContext sqlc = new SQLContext(result.sparkSession());
+  		Dataset<Rankings> ranksFinal = sqlc.createDataFrame(resultRankings, Rankings.class).map(new MapFunction<Row,Rankings>(){
+ 	 		private static final long serialVersionUID = 3332200811591838003L;
+ 			@Override
+			public Rankings call(Row value) throws Exception {
+				Rankings ranks = new Rankings();
+				ranks.apply(value);
+				return ranks;
+			}}, Encoders.bean(Rankings.class));
+  		saveFile(ranksFinal.orderBy("year"));
 	}
 
 	private void saveFile(Dataset<Rankings> pitching, final FileWriter writer) throws IOException {
@@ -107,7 +180,7 @@ public class RankingsProcessor implements Serializable {
 	}
 
 	public static void main(String arg[]) throws IOException {
-		Logger.getLogger("org.apache").setLevel(Level.ERROR);
+		Logger.getLogger("org.apache").setLevel(Level.OFF);
 		RankingsProcessor proce = new RankingsProcessor();
 		proce.startProcess(new DbReader());
 		
